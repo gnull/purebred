@@ -50,6 +50,13 @@ matrix:
       script:
        - nix-build
        - nix-shell --command 'PATH=$PATH:result/bin cabal test --show-details=streaming uat'
+    - compiler: "hlint"
+      language: c
+      addons: {apt: {packages: [hlint]}}
+      before_install:
+      install:
+      script:
+        - hlint .
     - compiler: "ghcHEAD"
       language: nix
       before_install:
