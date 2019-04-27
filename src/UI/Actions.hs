@@ -1015,6 +1015,7 @@ invokeEditor' :: AppState -> IO AppState
 invokeEditor' s =
   let maybeEntity = preview (asCompose . cAttachments . to L.listSelectedElement
                              . _Just . _2 . to getTextPlainPart . _Just) s
+      maildir = view (asConfig . confNotmuch . nmDatabase) s
       cmd = view (asConfig . confEditor) s
       updatePart s' tempfile = do
         contents <- tryIO $ T.readFile tempfile
@@ -1022,7 +1023,7 @@ invokeEditor' s =
         pure $ s' & over (asCompose . cAttachments) (upsertPart mail)
       mkEntity :: (MonadError Error m) => m B.ByteString
       mkEntity = maybe (pure mempty) entityToBytes maybeEntity
-      entityCmd = EntityCommand updatePart (tmpfileResource True) (\_ fp -> proc cmd [fp])
+      entityCmd = EntityCommand updatePart (draftFileResoure maildir) (\_ fp -> proc cmd [fp])
   in
     either (`setError` s) id
     <$> runExceptT (mkEntity >>= flip runEntityCommand s . entityCmd)

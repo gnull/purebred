@@ -21,6 +21,8 @@ module Purebred.System.Process
   , handleExitCode
   , Purebred.System.Process.readProcess
   , tmpfileResource
+  , draftFileResoure
+  , createDraftFilePath
   , emptyResource
   , toProcessConfigWithTempfile
   , runEntityCommand
@@ -42,8 +44,9 @@ import System.Process.Typed
 import Control.Monad.Except (MonadError, throwError)
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.ByteString as B
-import System.IO.Temp (emptySystemTempFile)
-import System.Directory (removeFile)
+import System.IO.Temp (emptySystemTempFile, emptyTempFile)
+import System.FilePath ((</>))
+import System.Directory (removeFile, createDirectoryIfMissing)
 import Control.Lens ((&), _2, over, set, view)
 import Data.Semigroup ((<>))
 import Data.Foldable (toList)
@@ -53,6 +56,7 @@ import qualified Data.Text as T
 import Error
 import Types
 import Purebred.Types.IFC
+import Purebred.System.Directory (maildirMessageFileTemplate)
 
 
 -- | Handler to handle exit failures and possibly showing an error in the UI.
@@ -128,6 +132,31 @@ tmpfileResource keepTempfile =
 emptyResource :: (MonadIO m, MonadError Error m) => ResourceSpec m ()
 emptyResource =
   ResourceSpec (pure mempty) (\_ -> pure mempty) (\_ _ -> pure mempty)
+
+-- | Create a temporary file in the drafts directory as a maildir
+-- compliant filepath used for editing mail bodies.
+-- Assumption: We don't cater for the case that the maildir does not exist!
+-- The maildir is the notmuch database directory. If the maildir
+-- wouldn't exist the entire application wouldn't run.
+createDraftFilePath :: (MonadError Error m, MonadIO m) => FilePath -> m FilePath
+createDraftFilePath maildir =
+  let draftsDir = maildir </> "Drafts" </> "new"
+  in tryIO $ do
+    createDirectoryIfMissing False draftsDir
+    maildirMessageFileTemplate >>= emptyTempFile draftsDir
+
+-- | Uses a maildir filename template and stores the temporary file in the
+-- drafts folder. In case the given maildir folder does not exist, the system
+-- temporary folder is used.
+draftFileResoure ::
+     (MonadIO m, MonadError Error m)
+  => FilePath -- ^ maildir path
+  -> ResourceSpec m FilePath
+draftFileResoure maildir =
+  ResourceSpec
+    (createDraftFilePath maildir)
+    (tryIO . removeFile)
+    (\fp -> tryIO . B.writeFile fp)
 
 toProcessConfigWithTempfile :: MakeProcess -> FilePath -> ProcessConfig () () ()
 toProcessConfigWithTempfile (Shell cmd) fp = shell (toList cmd <> " " <> fp)
