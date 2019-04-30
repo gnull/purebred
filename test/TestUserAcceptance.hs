@@ -811,7 +811,16 @@ testUserCanAbortMailComposition =
                              <> "\"Joe Bloggs\" <joe@foo.test>")
 
             liftIO $ step "abort mail"
-            sendKeys "q" (Literal "Testmail")
+            sendKeys "q" (Literal "Keep draft?")
+
+            liftIO $ step "choose discard"
+            --TODO: buildAnsiRegex will cause the generated Regex not
+            --to match. Maybe not \\s+ even though raw it looks like
+            --there is white space?
+            sendKeys "Tab" (Literal "Discard")
+
+            liftIO $ step "confirm discard"
+            sendKeys "Enter" (Literal "Testmail")
 
             liftIO $ step "start composition again"
             sendKeys "m" (Literal "From")
