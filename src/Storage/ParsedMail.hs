@@ -104,3 +104,8 @@ toQuotedMail ct msg =
                  . set (headers . at "references") (view (headers . replyHeaderReferences) msg)
                  . set (headers . at "subject") (("Re: " <>) <$> view (headers . at "subject") msg))
            contents
+
+toMIMEMessage :: WireEntity -> MIMEMessage
+toMIMEMessage m@(Message _ bs) =
+  let ct = view (headers . contentType) m
+  in createAttachment ct Nothing bs

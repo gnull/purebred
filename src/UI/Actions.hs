@@ -63,6 +63,7 @@ module UI.Actions (
   , openAttachment
   , pipeToCommand
   , handleConfirm
+  , composeAsNew
   ) where
 
 import Data.Functor.Identity (Identity(..))
@@ -73,7 +74,7 @@ import qualified Brick.Focus as Brick
 import qualified Brick.Types as T
 import qualified Brick.Widgets.Edit as E
 import qualified Brick.Widgets.List as L
-import Brick.Widgets.Dialog (dialog, dialogSelection)
+import Brick.Widgets.Dialog (dialog, dialogSelection, Dialog)
 import Network.Mime (defaultMimeLookup)
 import Data.Proxy
 import Data.Semigroup ((<>))
@@ -92,7 +93,7 @@ import Prelude hiding (readFile, unlines)
 import Data.Functor (($>))
 import Control.Lens
        (_Just, to, at, ix, _1, _2, toListOf, traverse, traversed, has, snoc,
-        filtered, set, over, preview, view, views, (&), nullOf, firstOf,
+        filtered, set, over, preview, view, views, (&), nullOf, firstOf, non,
         Getting, Lens')
 import Control.Concurrent (forkIO)
 import Control.Monad ((>=>))
@@ -116,7 +117,7 @@ import Data.MIME
         ContentType(..), Mailbox(..))
 import qualified Storage.Notmuch as Notmuch
 import Storage.ParsedMail
-       (parseMail, getTo, getFrom, getSubject, toQuotedMail, entityToBytes)
+       (parseMail, getTo, getFrom, getSubject, toQuotedMail, entityToBytes, toMIMEMessage)
 import Types
 import Error
 import UI.Utils (selectedFiles, takeFileName)
@@ -832,6 +833,14 @@ handleConfirm =
     ["handle confirmation"]
     (liftIO . keepOrDiscardDraft)
 
+composeAsNew :: Action 'ViewMail 'ScrollingMailView AppState
+composeAsNew =
+  Action
+    ["edit mail as new"]
+    (\s ->
+       let m = view (asMailView . mvMail) s
+        in pure $ set asCompose (newComposeFromMail m) s)
+
 
 -- Function definitions for actions
 --
@@ -1036,7 +1045,28 @@ initialCompose mailboxes =
         (E.editorText ComposeSubject (Just 1) "")
         T.empty
         (L.list ComposeListOfAttachments mempty 1)
-        (dialog (Just "Keep draft?") (Just (0, [("Keep", Keep), ("Discard", Discard)])) 50)
+        initialDraftConfirmDialog
+
+newComposeFromMail :: Maybe MIMEMessage -> Compose
+newComposeFromMail m =
+  let subject =
+        preview (_Just . headers . at "subject" . _Just . to decodeLenient) m
+      from = preview (_Just . headers . at "from" . _Just . to decodeLenient) m
+      to' = preview (_Just . headers . at "to" . _Just . to decodeLenient) m
+      attachments' =
+        view vector $ toMIMEMessage <$> toListOf (_Just . entities) m
+      orEmpty = view (non "")
+   in Compose
+        B.empty
+        (E.editorText ComposeFrom (Just 1) (orEmpty from))
+        (E.editorText ComposeTo (Just 1) (orEmpty to'))
+        (E.editorText ComposeSubject (Just 1) (orEmpty subject))
+        T.empty
+        (L.list ComposeListOfAttachments attachments' 1)
+        initialDraftConfirmDialog
+
+initialDraftConfirmDialog :: Dialog ConfirmDraft
+initialDraftConfirmDialog = dialog (Just "Keep draft?") (Just (0, [("Keep", Keep), ("Discard", Discard)])) 50
 
 -- | Serialise the WireEntity and write it to a temporary file. If no WireEntity
 -- exists (e.g. composing a new mail) just use the empty file. When the
