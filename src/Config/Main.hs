@@ -210,6 +210,7 @@ defaultConfig =
       , _cvListOfAttachmentsKeybindings = listOfAttachmentsKeybindings
       , _cvIdentities = []
       , _cvConfirmKeybindings = confirmKeybindings
+      , _cvDraftTag = "draft"
       }
     , _confHelpView = HelpViewSettings
       { _hvKeybindings = helpKeybindings

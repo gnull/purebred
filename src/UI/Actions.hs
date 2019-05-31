@@ -838,8 +838,20 @@ composeAsNew =
   Action
     ["edit mail as new"]
     (\s ->
-       let m = view (asMailView . mvMail) s
-        in pure $ set asCompose (newComposeFromMail m) s)
+       case preview
+              (asMailIndex .
+               miListOfMails . to L.listSelectedElement . _Just . _2)
+              s of
+         Nothing -> pure $ setError (GenericError "No mail selected") s
+         Just mail ->
+           let pmail = view (asMailView . mvMail) s
+               dbpath = view (asConfig . confNotmuch . nmDatabase) s
+            in liftIO $
+               either (`setError` s) (set asCompose (newComposeFromMail pmail)) <$>
+               runExceptT
+                 (Notmuch.mailFilepath mail dbpath >>=
+                  Notmuch.unindexFilePath dbpath >>
+                  pure s))
 
 
 -- Function definitions for actions
@@ -1196,7 +1208,10 @@ keepDraft ::
   -> FilePath
   -> m AppState
 keepDraft s maildir =
-  let mkCmd = EntityCommand (const . pure) (draftFileResoure maildir) (\_ _ -> proc "true" [])
+  let draftTag = view (asConfig . confComposeView . cvDraftTag) s
   in do
     bs <- renderMessage . fst <$> buildMail s
-    runEntityCommand (mkCmd bs) s
+    fp <- createDraftFilePath maildir
+    tryIO $ B.writeFile fp bs
+    Notmuch.indexFilePath maildir fp [draftTag]
+    pure s

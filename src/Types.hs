@@ -289,6 +289,7 @@ data ComposeViewSettings = ComposeViewSettings
     , _cvListOfAttachmentsKeybindings :: [Keybinding 'ComposeView 'ComposeListOfAttachments]
     , _cvIdentities :: [Mailbox]
     , _cvConfirmKeybindings :: [Keybinding 'ComposeView 'ConfirmDialog]
+    , _cvDraftTag :: Tag
     }
     deriving (Generic, NFData)
 
@@ -315,6 +316,9 @@ cvIdentities = lens _cvIdentities (\cv x -> cv { _cvIdentities = x })
 
 cvConfirmKeybindings :: Lens' ComposeViewSettings [Keybinding 'ComposeView 'ConfirmDialog]
 cvConfirmKeybindings = lens _cvConfirmKeybindings (\cv x -> cv { _cvConfirmKeybindings = x })
+
+cvDraftTag :: Lens' ComposeViewSettings Tag
+cvDraftTag = lens _cvDraftTag (\cv x -> cv { _cvDraftTag = x })
 
 newtype HelpViewSettings = HelpViewSettings
   { _hvKeybindings :: [Keybinding 'Help 'ScrollingHelpView]
