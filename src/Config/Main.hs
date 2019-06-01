@@ -74,7 +74,7 @@ solarizedDark =
         , (E.editFocusedAttr, V.white `on` V.brightBlack)
         , (editorAttr, V.brightBlue `on` V.brightBlack)
         , (editorLabelAttr, V.brightYellow `on` V.brightBlack)
-        , (statusbarErrorAttr, fg V.red)
+        , (statusbarErrorAttr, V.black `on` V.red)
         , (statusbarAttr, V.black `on` V.brightYellow)
         , (headerKeyAttr, fg V.cyan)
         , (headerValueAttr, fg V.brightCyan)
